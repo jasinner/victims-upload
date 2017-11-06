@@ -25,7 +25,7 @@ import (
 	"github.com/victims/victims-common/log"
 	"github.com/victims/victims-common/types"
 	"github.com/victims/victims-common/db"
-	"github.com/victims/victims-api/upload"
+	"github.com/victims/victims-upload/upload"
 	"net/http"
 	"time"
 	"io/ioutil"
