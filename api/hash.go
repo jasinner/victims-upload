@@ -30,38 +30,52 @@ import (
 	"time"
 	"io/ioutil"
 	"encoding/json"
+	"regexp"
+	"errors"
 )
 
 // Upload looks up hash from services and persists hash to victims database
 func Upload(c *gin.Context) {
+	err := handleUpload(c)
+
+	if(err != nil){
+		c.AbortWithStatusJSON(400, gin.H{
+			"message": err.Error(),
+		})
+		return;
+	}
+
+	c.JSON(200, gin.H{
+		"message": "success",
+	})
+}
+func handleUpload(c *gin.Context) error {
 	file, fileHeader, err := c.Request.FormFile("package")
 	if err != nil {
 		log.Logger.Infof("Error getting the file in upload: %s", err)
-		// Bad Request
-		c.AbortWithStatus(400)
+		return err
 	}
 	defer file.Close()
-
-
 	// Write the file out to the file system
 	// TODO: Don't use the original name or /tmp
 	out, err := os.Create("/tmp/" + fileHeader.Filename)
 	defer out.Close()
 	if err != nil {
 		log.Logger.Fatal(err)
+		return err
 	}
 	// Copy the content from the upload file to the file on disk
 	len, err := io.Copy(out, file)
 	if err != nil {
 		log.Logger.Fatal(err)
+		return err
 	}
-
 	log.Logger.Infof("length: %v", len)
-
-	request, err := upload.UploadRequest("http://localhost:8081/hash", "library2", "/tmp/" + fileHeader.Filename)
+	upload.New("localhost")
+	request, err := upload.UploadRequest("library2", "/tmp/"+fileHeader.Filename)
 	if err != nil {
 		log.Logger.Error(err)
-		c.AbortWithStatus(500)
+		return err
 	}
 	client := &http.Client{
 		Timeout: time.Second * 10,
@@ -69,38 +83,41 @@ func Upload(c *gin.Context) {
 	resp, err := client.Do(request)
 	if err != nil {
 		log.Logger.Error(err)
-		c.AbortWithStatus(500)
+		return err
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Logger.Error(err)
-		c.AbortWithStatus(500)
+		return err
 	}
-
 	multiHash := []types.Hash{}
 	if err := json.Unmarshal(body, &multiHash); err != nil {
 		log.Logger.Error(err)
-		c.AbortWithStatus(500)
+		return err
 	}
-
-	cves := types.CVEs{}
-	cve := c.Request.FormValue("cve")
-	cves.AppendSingle(cve)
-
+	cves,err := getCves(c)
+	if(err != nil){
+		return err
+	}
 	col, _ := db.GetCollection("hashes")
-	for _ , hash := range multiHash {
+	for _, hash := range multiHash {
 		hash.Cves = cves
 		col.Insert(hash)
 	}
-
-
-	//log.Logger.Infof("length: %v, %v", len, string(responseJson))
-
-	//TODO persist singleHash to DB with CVE and Submitter
-
-	// Fall through to a 404
-
-	c.AbortWithStatus(404)
+	return nil;
+}
+func getCves(c *gin.Context) (types.CVEs, error) {
+	cves := types.CVEs{}
+	cve := c.Request.FormValue("cve")
+	if (cve == "") {
+		return cves, errors.New("cve field can't be empty")
+	}
+	match, err := regexp.MatchString("CVE-\\d{4}-\\d{4,7}", cve)
+	if (!match) {
+		return cves, errors.New("Invalid CVE identifier")
+	}
+	cves.AppendSingle(cve)
+	return cves, err
 }
 
 
