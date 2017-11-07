@@ -26,7 +26,6 @@ import (
 	"github.com/victims/victims-upload/api"
 	"github.com/victims/victims-common/db"
 	"github.com/victims/victims-common/log"
-	"github.com/victims/victims-upload/upload"
 )
 
 var version string
@@ -59,7 +58,6 @@ func runCmd() *cobra.Command {
 	var mongoDBUser string
 	var mongoDBDatabase string
 	var mongoDBUseEnv bool
-	var javaHashHost string
 
 	runCmd := &cobra.Command{
 		Use:   "run",
@@ -77,7 +75,6 @@ func runCmd() *cobra.Command {
 			log.Logger.Warnf("%s %s", mongoDBHost, mongoDBDatabase)
 			_, err := db.New(mongoDBHost, mongoDBDatabase)
 			//TODO figure out how to initilize upload with hostname
-			upload.New(javaHashHost)
 			if err != nil {
 				log.Logger.Fatalf("Unable to connect to the databse: %s", err)
 			}else{
@@ -100,8 +97,6 @@ func runCmd() *cobra.Command {
 	runCmd.PersistentFlags().BoolVar(
 		&mongoDBUseEnv, "mongodb-use-env",
 		false, "If set MONGODB_USER/PASSWORD/DATABASE environment variables will be used.")
-	runCmd.PersistentFlags().StringVar(
-		&javaHashHost, "java-hash-service", "localhost", "Hostname of Victims Java Service")
 	return runCmd
 }
 

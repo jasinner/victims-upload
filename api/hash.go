@@ -71,7 +71,6 @@ func handleUpload(c *gin.Context) error {
 		return err
 	}
 	log.Logger.Infof("length: %v", len)
-	upload.New("localhost")
 	request, err := upload.UploadRequest("library2", "/tmp/"+fileHeader.Filename)
 	if err != nil {
 		log.Logger.Error(err)

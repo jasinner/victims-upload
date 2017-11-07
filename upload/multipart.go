@@ -12,13 +12,18 @@ import (
 	"github.com/victims/victims-common/log"
 )
 
-var uri string
 const port = 8080
 const path = "hash"
+const key = "JAVA_SERVICE_HOST"
 
-func New(hostname string){
-	uri = fmt.Sprintf("http://%v:%v/%v", hostname, port, path)
+func lookupHostname() string{
+	hostname, ok := os.LookupEnv(key)
+	if !ok {
+		log.Logger.Panicf("The environment variable %s must be set!", key)
+	}
+	uri := fmt.Sprintf("http://%v:%v/%v", hostname, port, path)
 	log.Logger.Infof("Using Java Hash Service at: %v", uri)
+	return uri
 }
 
 // Creates a new file upload http request from file path
@@ -41,6 +46,8 @@ func UploadRequest(paramName, path string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	uri := lookupHostname()
 
 	req, err := http.NewRequest("POST", uri, body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
